@@ -15,8 +15,25 @@ task :bootstrap => [:install, :start, :join]
 
 desc "start all riak nodes"
 task :start do
+
+  output = 'kern.maxfiles: 65536'
+  cmd = `sysctl kern.maxfiles`
+
+  if cmd.chomp.eql? output
+    puts "========================================"
+    puts "Your system doesn't have the right open file limit."
+    puts "You'll be prompted for your admin password"
+    puts "in order to set your maxfiles limit."
+    puts "========================================"
+
+    sh %{echo kern.maxfiles=65536 | sudo tee -a /etc/sysctl.conf}
+    sh %{echo kern.maxfilesperproc=65536 | sudo tee -a /etc/sysctl.conf}
+    sh %{sudo sysctl -w kern.maxfiles=65536}
+    sh %{sudo sysctl -w kern.maxfilesperproc=65536}
+  end 
+  
   (1..NUM_NODES).each do |n|
-    sh %{ulimit -n 65536; ./riak#{n}/bin/riak start}
+    sh %{ulimit -n 65536 65536; ./riak#{n}/bin/riak start}
   end
   puts "========================================"
   puts "Riak Dev Cluster started"
@@ -30,7 +47,7 @@ end
 desc "stop all riak nodes"
 task :stop do
   (1..NUM_NODES).each do |n|
-    sh %{ulimit -n 65536; ./riak#{n}/bin/riak stop} rescue "not running"
+    sh %{ulimit -n 65536 65536; ./riak#{n}/bin/riak stop} rescue "not running"
   end
 end
 
